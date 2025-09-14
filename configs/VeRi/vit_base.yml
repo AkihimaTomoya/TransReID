@@ -52,4 +52,9 @@ TEST:
 
 OUTPUT_DIR: '../logs/veri_vit_base'
 
-
+# Resume training configuration
+RESUME:
+  ENABLED: False  # Set to True when you want to resume
+  CHECKPOINT_PATH: ''  # Path to your checkpoint file
+  RESUME_SCHEDULER: True  # Resume scheduler state
+  RESUME_OPTIMIZER: True  # Resume optimizer state
