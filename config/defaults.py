@@ -187,3 +187,15 @@ _C.TEST.EVAL = False
 # ---------------------------------------------------------------------------- #
 # Path to checkpoint and saved log of trained model
 _C.OUTPUT_DIR = ""
+# ---------------------------------------------------------------------------- #
+# Resume Training
+# ---------------------------------------------------------------------------- #
+_C.RESUME = CN()
+# Path to checkpoint for resuming training
+_C.RESUME.CHECKPOINT_PATH = ""
+# Whether to resume training from checkpoint
+_C.RESUME.ENABLED = False
+# Whether to resume scheduler state
+_C.RESUME.RESUME_SCHEDULER = True
+# Whether to resume optimizer state  
+_C.RESUME.RESUME_OPTIMIZER = True
