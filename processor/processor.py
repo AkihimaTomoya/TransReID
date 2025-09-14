@@ -8,6 +8,19 @@ from utils.metrics import R1_mAP_eval
 from torch.cuda import amp
 import torch.distributed as dist
 
+def save_checkpoint(model, optimizer, optimizer_center, scheduler, epoch, save_path):
+    """
+    Save checkpoint with all training states
+    """
+    checkpoint = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'optimizer_center_state_dict': optimizer_center.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
+        'epoch': epoch,
+    }
+    torch.save(checkpoint, save_path)
+
 def do_train(cfg,
              model,
              center_criterion,
@@ -17,7 +30,9 @@ def do_train(cfg,
              optimizer_center,
              scheduler,
              loss_fn,
-             num_query, local_rank):
+             num_query, 
+             local_rank,
+             start_epoch=1):  # Add start_epoch parameter
     log_period = cfg.SOLVER.LOG_PERIOD
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
     eval_period = cfg.SOLVER.EVAL_PERIOD
@@ -39,8 +54,12 @@ def do_train(cfg,
 
     evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)
     scaler = amp.GradScaler()
+    
+    # Use start_epoch instead of hardcoded 1
+    logger.info(f'Starting training from epoch {start_epoch}')
+    
     # train
-    for epoch in range(1, epochs + 1):
+    for epoch in range(start_epoch, epochs + 1):  # Modified range
         start_time = time.time()
         loss_meter.reset()
         acc_meter.reset()
@@ -93,11 +112,23 @@ def do_train(cfg,
         if epoch % checkpoint_period == 0:
             if cfg.MODEL.DIST_TRAIN:
                 if dist.get_rank() == 0:
-                    torch.save(model.state_dict(),
-                               os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME + '_{}.pth'.format(epoch)))
+                    # Save full checkpoint
+                    checkpoint_path = os.path.join(cfg.OUTPUT_DIR, f'{cfg.MODEL.NAME}_checkpoint_epoch_{epoch}.pth')
+                    save_checkpoint(model, optimizer, optimizer_center, scheduler, epoch, checkpoint_path)
+                    logger.info(f"Full checkpoint saved: {checkpoint_path}")
+                    
+                    # Also save model weights only (for compatibility)
+                    model_path = os.path.join(cfg.OUTPUT_DIR, f'{cfg.MODEL.NAME}_{epoch}.pth')
+                    torch.save(model.state_dict(), model_path)
             else:
-                torch.save(model.state_dict(),
-                           os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME + '_{}.pth'.format(epoch)))
+                # Save full checkpoint
+                checkpoint_path = os.path.join(cfg.OUTPUT_DIR, f'{cfg.MODEL.NAME}_checkpoint_epoch_{epoch}.pth')
+                save_checkpoint(model, optimizer, optimizer_center, scheduler, epoch, checkpoint_path)
+                logger.info(f"Full checkpoint saved: {checkpoint_path}")
+                
+                # Also save model weights only (for compatibility)
+                model_path = os.path.join(cfg.OUTPUT_DIR, f'{cfg.MODEL.NAME}_{epoch}.pth')
+                torch.save(model.state_dict(), model_path)
 
         if epoch % eval_period == 0:
             if cfg.MODEL.DIST_TRAIN:
@@ -169,5 +200,3 @@ def do_inference(cfg,
     for r in [1, 5, 10]:
         logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
     return cmc[0], cmc[4]
-
-
