@@ -37,17 +37,35 @@ def do_train(cfg,
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
     eval_period = cfg.SOLVER.EVAL_PERIOD
 
-    device = "cuda"
+    device = f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu"
     epochs = cfg.SOLVER.MAX_EPOCHS
 
     logger = logging.getLogger("transreid.train")
-    logger.info('start training')
+    logger.info(f'start training on device: {device}')
     _LOCAL_PROCESS_GROUP = None
-    if device:
-        model.to(local_rank)
-        if torch.cuda.device_count() > 1 and cfg.MODEL.DIST_TRAIN:
-            print('Using {} GPUs for training'.format(torch.cuda.device_count()))
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], find_unused_parameters=True)
+    
+    # Move model to device first
+    model.to(device)
+    
+    # Move center_criterion to device if it exists
+    if center_criterion is not None:
+        center_criterion.to(device)
+    
+    # Setup distributed training
+    if torch.cuda.device_count() > 1 and cfg.MODEL.DIST_TRAIN:
+        print('Using {} GPUs for training'.format(torch.cuda.device_count()))
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], find_unused_parameters=True)
+
+    # Ensure optimizer states are on correct device
+    for state in optimizer.state.values():
+        for k, v in state.items():
+            if isinstance(v, torch.Tensor):
+                state[k] = v.to(device)
+                
+    for state in optimizer_center.state.values():
+        for k, v in state.items():
+            if isinstance(v, torch.Tensor):
+                state[k] = v.to(device)
 
     loss_meter = AverageMeter()
     acc_meter = AverageMeter()
