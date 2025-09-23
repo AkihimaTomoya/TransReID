@@ -1,6 +1,6 @@
 MODEL:
   PRETRAIN_CHOICE: 'imagenet'
-  PRETRAIN_PATH: '/home/heshuting/.cache/torch/checkpoints/jx_vit_base_p16_224-80ecf9dd.pth'
+  PRETRAIN_PATH: '/home/heshuting/.cache/torch/checkpoints/jx_vit_base_p16_224-80ecf9dd.pth' #change here
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
@@ -27,7 +27,7 @@ INPUT:
 
 DATASETS:
   NAMES: ('veri')
-  ROOT_DIR: ('../../data')
+  ROOT_DIR: ('../../data') #change here
 
 DATALOADER:
   SAMPLER: 'softmax_triplet'
@@ -41,9 +41,9 @@ SOLVER:
   IMS_PER_BATCH: 64
   WARMUP_METHOD: 'linear'
   LARGE_FC_LR: False
-  CHECKPOINT_PERIOD: 120
-  LOG_PERIOD: 50
-  EVAL_PERIOD: 120
+  CHECKPOINT_PERIOD: 60
+  LOG_PERIOD: 60
+  EVAL_PERIOD: 60
   WEIGHT_DECAY:  1e-4
   WEIGHT_DECAY_BIAS: 1e-4
   BIAS_LR_FACTOR: 2
