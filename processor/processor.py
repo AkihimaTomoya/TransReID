@@ -182,16 +182,12 @@ def do_train(cfg,
                 torch.cuda.empty_cache()
 
 
-def do_inference(cfg,
-                 model,
-                 val_loader,
-                 num_query):
+def do_inference(cfg, model, val_loader, num_query):
     device = "cuda"
     logger = logging.getLogger("transreid.test")
     logger.info("Enter inferencing")
 
     evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)
-
     evaluator.reset()
 
     if device:
@@ -203,8 +199,8 @@ def do_inference(cfg,
     model.eval()
     img_path_list = []
 
-    for n_iter, (img, pid, camid, camids, target_view, imgpath) in enumerate(val_loader):
-        with torch.no_grad():
+    with torch.no_grad():
+        for n_iter, (img, pid, camid, camids, target_view, imgpath) in enumerate(val_loader):
             img = img.to(device)
             camids = camids.to(device)
             target_view = target_view.to(device)
@@ -212,9 +208,12 @@ def do_inference(cfg,
             evaluator.update((feat, pid, camid))
             img_path_list.extend(imgpath)
 
-    cmc, mAP, _, _, _, _, _ = evaluator.compute()
+    cmc, mAP, all_AP, all_INP, q_pids, g_pids, q_camids = evaluator.compute()
     logger.info("Validation Results ")
     logger.info("mAP: {:.1%}".format(mAP))
     for r in [1, 5, 10]:
         logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-    return cmc[0], cmc[4]
+
+    # Trả về để script tổng hợp có thể lấy số liệu
+    # cmc là mảng 0-based: Rank-1 -> cmc[0], Rank-5 -> cmc[4], Rank-10 -> cmc[9]
+    return float(mAP), float(cmc[0]), float(cmc[4]), float(cmc[9])
