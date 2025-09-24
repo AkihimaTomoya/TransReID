@@ -1,4 +1,4 @@
-python eval_all.py \
+python eval_all_gocs.py \
   --config_file configs/VeRi/vit_base.yml \
   --root_dir /kaggle/working \
   --weight /kaggle/input/temp/pytorch/default/1/transformer_120.pth \
