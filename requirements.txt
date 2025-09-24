@@ -3,5 +3,5 @@ torchvision
 timm
 yacs
 opencv-python
-ultralytics
+timm
 yacs
