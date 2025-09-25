@@ -3,10 +3,34 @@ import argparse
 from glob import glob
 
 import torch
+import torch.nn as nn
+
 from config import cfg
 from datasets import make_dataloader
 from model import make_model
 from processor import do_inference
+
+
+class TTAFlipWrapper(nn.Module):
+    """
+    Bọc model để thực hiện TTA (horizontal flip) ở forward mà không cần sửa processor.py.
+    Khi gọi forward(img, cam_label, view_label) sẽ:
+      feat = average( model(img), model(flip(img)) )
+    """
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    @torch.no_grad()
+    def forward(self, img, cam_label=None, view_label=None):
+        # original
+        feat1 = self.model(img, cam_label=cam_label, view_label=view_label)
+        # horizontal flip (dims=[3] là theo chiều rộng W)
+        img_flip = torch.flip(img, dims=[3])
+        feat2 = self.model(img_flip, cam_label=cam_label, view_label=view_label)
+        # average features
+        feat = (feat1 + feat2) / 2.0
+        return feat
 
 
 def load_weights_filtered(model, weight_path: str):
@@ -25,7 +49,8 @@ def load_weights_filtered(model, weight_path: str):
 
 
 def run_one(cfg_file, root_dir, weight, query_ver, goc_name, device_id=0,
-            ims_per_batch=32, num_workers=2, rerank=True, neck_feat='after'):
+            ims_per_batch=32, num_workers=2, rerank=True, neck_feat='after',
+            tta_flip=True):
     """Chạy eval cho 1 gốc, trả về dict: {'goc', 'mAP', 'R1','R5','R10'}"""
     # 1) Cấu hình
     cfg.defrost()
@@ -53,7 +78,12 @@ def run_one(cfg_file, root_dir, weight, query_ver, goc_name, device_id=0,
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num=view_num)
     load_weights_filtered(model, cfg.TEST.WEIGHT)
 
-    # 4) Inference (y/c processor.do_inference trả về mAP, R1, R5, R10)
+    # 3.1) Bật TTA nếu có cờ
+    if tta_flip:
+        print("[TTA] Horizontal flip enabled.")
+        model = TTAFlipWrapper(model)
+
+    # 4) Inference (do_inference của processor trả về mAP, R1, R5, R10 theo prepare sẵn)
     mAP, R1, R5, R10 = do_inference(cfg, model, val_loader, num_query)
     return {'goc': goc_name, 'mAP': mAP * 100.0, 'R1': R1 * 100.0, 'R5': R5 * 100.0, 'R10': R10 * 100.0}
 
@@ -69,6 +99,7 @@ def main():
     ap.add_argument("--num_workers", type=int, default=2)
     ap.add_argument("--no_rerank", action="store_true")
     ap.add_argument("--neck_feat", type=str, default="after", choices=["before","after"])
+    ap.add_argument("--tta_flip", action="store_true", help="Enable horizontal flip TTA at inference")
     args = ap.parse_args()
 
     # liệt kê goc_*
@@ -81,7 +112,7 @@ def main():
 
     results = []
     for goc in goc_names:
-        print(f"\n>>> Running {goc} (query={args.query_ver})")
+        print(f"\n>>> Running {goc} (query={args.query_ver}, tta_flip={args.tta_flip})")
         rec = run_one(
             cfg_file=args.config_file,
             root_dir=args.root_dir,
@@ -93,6 +124,7 @@ def main():
             num_workers=args.num_workers,
             rerank=(not args.no_rerank),
             neck_feat=args.neck_feat,
+            tta_flip=args.tta_flip,
         )
         print(f"[{goc}] mAP={rec['mAP']:.2f}%  R1={rec['R1']:.2f}%  R5={rec['R5']:.2f}%  R10={rec['R10']:.2f}%")
         results.append(rec)
@@ -106,7 +138,6 @@ def main():
         print(f"{r['goc']:>10s} | mAP={r['mAP']:6.2f}%  R1={r['R1']:6.2f}%  R5={r['R5']:6.2f}%  R10={r['R10']:6.2f}%")
     print("\n===== MEAN over gocs =====")
     print(f"mAP={m_map:.2f}%  R1={m_r1:.2f}%  R5={m_r5:.2f}%  R10={m_r10:.2f}%")
-
 
 if __name__ == "__main__":
     main()
