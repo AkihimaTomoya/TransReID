@@ -1,0 +1,91 @@
+MODEL:
+  PRETRAIN_CHOICE: 'self'
+  PRETRAIN_PATH: 'path/to/veri776_pretrained_model.pth'
+  METRIC_LOSS_TYPE: 'triplet'
+  IF_LABELSMOOTH: 'off'
+  IF_WITH_CENTER: 'no'
+  NAME: 'transformer'
+  NO_MARGIN: True
+  DEVICE_ID: ('0')
+  TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
+  STRIDE_SIZE: [12, 12]
+  SIE_CAMERA: True
+  SIE_VIEW: True
+  SIE_COE: 3.0
+  JPM: True
+  SHIFT_NUM: 8
+  SHUFFLE_GROUP: 2
+  DEVIDE_LENGTH: 4
+  RE_ARRANGE: True
+  ID_LOSS_TYPE: 'softmax'
+  DROP_PATH: 0.1
+  DROP_OUT: 0.0
+  ATT_DROP_RATE: 0.0
+  DIST_TRAIN: False
+  COS_LAYER: False
+  NECK: 'bnneck'
+  LAST_STRIDE: 1
+
+INPUT:
+  SIZE_TRAIN: [256, 256]
+  SIZE_TEST: [256, 256]
+  PROB: 0.8  # Higher augmentation for small dataset
+  RE_PROB: 0.7  # Higher random erasing
+  PADDING: 15  # More padding
+  PIXEL_MEAN: [0.5, 0.5, 0.5]
+  PIXEL_STD: [0.5, 0.5, 0.5]
+
+DATASETS:
+  NAMES: 'realdata'
+  ROOT_DIR: './datasets'
+
+DATALOADER:
+  SAMPLER: 'softmax_triplet'
+  NUM_INSTANCE: 4
+  NUM_WORKERS: 8
+
+SOLVER:
+  OPTIMIZER_NAME: 'SGD'
+  MAX_EPOCHS: 80  # Fewer epochs for finetuning
+  BASE_LR: 0.002  # Much lower LR for finetuning
+  IMS_PER_BATCH: 64
+  
+  WARMUP_METHOD: 'linear'
+  WARMUP_EPOCHS: 5
+  WARMUP_FACTOR: 0.001  # Lower warmup factor
+  
+  STEPS: [30, 50]  # Earlier decay
+  GAMMA: 0.1
+  
+  WEIGHT_DECAY: 5e-4  # Stronger regularization
+  WEIGHT_DECAY_BIAS: 5e-4
+  BIAS_LR_FACTOR: 2
+  
+  CENTER_LOSS_WEIGHT: 0.0005
+  COSINE_MARGIN: 0.5
+  COSINE_SCALE: 30
+  
+  LARGE_FC_LR: False
+  FREEZE_BASE_EPOCHS: 10  # Freeze backbone for first 10 epochs
+  
+  SEED: 1234
+  
+  CHECKPOINT_PERIOD: 10
+  LOG_PERIOD: 50
+  EVAL_PERIOD: 10
+
+TEST:
+  EVAL: True
+  IMS_PER_BATCH: 128
+  RE_RANKING: False
+  WEIGHT: ''
+  NECK_FEAT: 'before'
+  FEAT_NORM: 'yes'
+
+OUTPUT_DIR: './output/realdata_aggressive_finetune'
+
+RESUME:
+  ENABLED: False
+  CHECKPOINT_PATH: ''
+  RESUME_OPTIMIZER: True
+  RESUME_SCHEDULER: True
