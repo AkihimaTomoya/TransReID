@@ -1,0 +1,101 @@
+MODEL:
+  PRETRAIN_CHOICE: 'self'  # 'self' for finetuning from VeRi, 'imagenet' for training from scratch
+  PRETRAIN_PATH: 'path/to/veri776_pretrained_model.pth'  # Update this path
+  METRIC_LOSS_TYPE: 'triplet'
+  IF_LABELSMOOTH: 'off'
+  IF_WITH_CENTER: 'no'
+  NAME: 'transformer'
+  NO_MARGIN: True
+  DEVICE_ID: ('0')
+  TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
+  STRIDE_SIZE: [12, 12]
+  SIE_CAMERA: True
+  SIE_VIEW: True
+  SIE_COE: 3.0
+  JPM: True
+  SHIFT_NUM: 8
+  SHUFFLE_GROUP: 2
+  DEVIDE_LENGTH: 4
+  RE_ARRANGE: True
+  ID_LOSS_TYPE: 'softmax'
+  DROP_PATH: 0.1
+  DROP_OUT: 0.0
+  ATT_DROP_RATE: 0.0
+
+INPUT:
+  SIZE_TRAIN: [256, 256]
+  SIZE_TEST: [256, 256]
+  PROB: 0.5 # random horizontal flip
+  RE_PROB: 0.5 # random erasing
+  PADDING: 10
+  PIXEL_MEAN: [0.5, 0.5, 0.5]
+  PIXEL_STD: [0.5, 0.5, 0.5]
+
+DATASETS:
+  NAMES: 'realdata'
+  ROOT_DIR: './datasets'  # Directory containing RealData_organized/
+
+DATALOADER:
+  SAMPLER: 'softmax_triplet'
+  NUM_INSTANCE: 4
+  NUM_WORKERS: 8
+
+SOLVER:
+  OPTIMIZER_NAME: 'SGD'
+  MAX_EPOCHS: 120
+  BASE_LR: 0.008  # Lower LR for finetuning (original VeRi uses 0.01)
+  IMS_PER_BATCH: 64
+  
+  # Scheduler settings
+  WARMUP_METHOD: 'linear'
+  WARMUP_EPOCHS: 5
+  WARMUP_FACTOR: 0.01
+  
+  # Learning rate decay
+  STEPS: [40, 70]
+  GAMMA: 0.1
+  
+  # Regularization
+  WEIGHT_DECAY: 1e-4
+  WEIGHT_DECAY_BIAS: 1e-4
+  BIAS_LR_FACTOR: 2
+  
+  # Loss weights
+  CENTER_LOSS_WEIGHT: 0.0005
+  COSINE_MARGIN: 0.5
+  COSINE_SCALE: 30
+  
+  # Training settings
+  LARGE_FC_LR: False
+  FREEZE_BASE_EPOCHS: 0  # Set to 5-10 for aggressive finetuning
+  
+  SEED: 1234
+  
+  # Logging and checkpointing
+  CHECKPOINT_PERIOD: 20
+  LOG_PERIOD: 50
+  EVAL_PERIOD: 20
+
+TEST:
+  EVAL: True
+  IMS_PER_BATCH: 128
+  RE_RANKING: False
+  WEIGHT: ''
+  NECK_FEAT: 'before'  # 'before' or 'after' BN
+  FEAT_NORM: 'yes'
+
+OUTPUT_DIR: './output/realdata_finetune'
+
+# Resume training configuration
+RESUME:
+  ENABLED: False
+  CHECKPOINT_PATH: ''
+  RESUME_OPTIMIZER: True
+  RESUME_SCHEDULER: True
+
+# Distributed training
+MODEL:
+  DIST_TRAIN: False  # Set to True for multi-GPU training
+  COS_LAYER: False
+  NECK: 'bnneck'
+  LAST_STRIDE: 1
